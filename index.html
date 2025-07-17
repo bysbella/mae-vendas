@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A'Dora Modas - Controle de Estoque</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f4f4f9;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  header h1 {
+    font-size: 2.5rem;
+    color: #d45d3f; /* tom terra cota */
+    margin: 0;
+  }
+  form {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 900px;
+    margin: 0 auto 30px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  form > div {
+    margin-bottom: 15px;
+  }
+  label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+  }
+  input[type=text], input[type=number], input[type=date], select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1.5px solid #ccc;
+    font-size: 1rem;
+  }
+  .flex-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .flex-row > div {
+    flex: 1 1 150px;
+  }
+  button {
+    background: #d45d3f;
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #b84a33;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  }
+  th, td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+  }
+  th {
+    background: #d45d3f;
+    color: white;
+  }
+  tr:hover {
+    background: #fce9e5;
+  }
+  .btn-small {
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    border-radius: 5px;
+  }
+  .btn-edit {
+    background: #2a9d8f;
+    margin-right: 5px;
+  }
+  .btn-delete {
+    background: #e76f51;
+  }
+  .totals {
+    margin-top: 20px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #555;
+    box-shadow: 0 0 8px rgba(0,0,0,0.07);
+  }
+  .products-list {
+    margin-top: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .products-list div {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    align-items: center;
+  }
+  .products-list span {
+    flex: 1;
+  }
+  .remove-prod-btn {
+    background: #e76f51;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 2px 6px;
+  }
+  .export-buttons {
+    max-width: 900px;
+    margin: 20px auto 0;
+    text-align: right;
+  }
+  .export-buttons button {
+    margin-left: 10px;
+    background: #264653;
+  }
+</style>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  // Importa Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getDatabase, ref, push, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+  // Config do Firebase - seu projeto
+  const firebaseConfig = {
+    apiKey: "AIzaSyBCwlPtYqPXYWkcXwbdEsmx032LEPQEfgk",
+    authDomain: "controle-vendas-3ecd3.firebaseapp.com",
+    databaseURL: "https://controle-vendas-3ecd3-default-rtdb.firebaseio.com",
+    projectId: "controle-vendas-3ecd3",
+    storageBucket: "controle-vendas-3ecd3.appspot.com",
+    messagingSenderId: "748936035760",
+    appId: "1:748936035760:web:377823232d6781312bea75"
+  };
+
+  // Inicializa Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Expondo para uso posterior no script da página
+  window.firebaseRefs = { db, ref, push, set, onValue, remove, update };
+</script>
+</head>
+<body>
+
+<header>
+  <h1>A'Dora Modas - Controle de Estoque</h1>
+</header>
+
+<form id="clienteForm">
+  <div>
+    <label for="nomeCliente">Nome da Cliente:</label>
+    <input type="text" id="nomeCliente" required />
+  </div>
+  <div class="flex-row">
+    <div>
+      <label for="dataCompra">Data da Compra:</label>
+      <input type="date" id="dataCompra" required />
+    </div>
+    <div>
+      <label for="tipoPagamento">Pagamento:</label>
+      <select id="tipoPagamento" required>
+        <option value="avista">À vista</option>
+        <option value="parcelado">Parcelado</option>
+      </select>
+    </div>
+    <div>
+      <label for="numParcelas">Número de Parcelas:</label>
+      <input type="number" id="numParcelas" min="1" value="1" disabled />
+    </div>
+  </div>
+
+  <hr />
+
+  <h3>Produtos</h3>
+  <div class="flex-row">
+    <div>
+      <label for="nomeProduto">Nome do Produto:</label>
+      <input type="text" id="nomeProduto" />
+    </div>
+    <div>
+      <label for="qtdProduto">Quantidade:</label>
+      <input type="number" id="qtdProduto" min="1" value="1" />
+    </div>
+    <div>
+      <label for="precoCusto">Preço de Custo (R$):</label>
+      <input type="number" id="precoCusto" min="0" step="0.01" value="0" />
+    </div>
+    <div>
+      <label for="precoVenda">Preço de Venda (R$):</label>
+      <input type="number" id="precoVenda" min="0" step="0.01" value="0" />
+    </div>
+  </div>
+  <button type="button" id="btnAddProduto" style="margin-top: 10px;">Adicionar Produto</button>
+
+  <div class="products-list" id="listaProdutos">
+    <!-- Produtos adicionados aparecem aqui -->
+  </div>
+
+  <button type="submit" style="margin-top: 15px;">Salvar Compra</button>
+</form>
+
+<section>
+  <table id="tabelaClientes">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Data</th>
+        <th>Pagamento</th>
+        <th>Parcelas</th>
+        <th>Produtos</th>
+        <th>Total Custo (R$)</th>
+        <th>Total Venda (R$)</th>
+        <th>Lucro (R$)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Entradas dos clientes aqui -->
+    </tbody>
+  </table>
+</section>
+
+<div class="export-buttons">
+  <button id="btnExportExcel">Exportar Excel</button>
+  <button id="btnExportPDF">Exportar PDF</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script type="module">
+  // Pega as referências Firebase do escopo global
+  const { db, ref, push, set, onValue, remove, update } = window.firebaseRefs;
+
+  const nomeCliente = document.getElementById('nomeCliente');
+  const dataCompra = document.getElementById('dataCompra');
+  const tipoPagamento = document.getElementById('tipoPagamento');
+  const numParcelas = document.getElementById('numParcelas');
+
+  const nomeProduto = document.getElementById('nomeProduto');
+  const qtdProduto = document.getElementById('qtdProduto');
+  const precoCusto = document.getElementById('precoCusto');
+  const precoVenda = document.getElementById('precoVenda');
+
+  const listaProdutos = document.getElementById('listaProdutos');
+  const btnAddProduto = document.getElementById('btnAddProduto');
+  const formCliente = document.getElementById('clienteForm');
+  const tabelaClientes = document.querySelector('#tabelaClientes tbody');
+
+  // Variável para guardar produtos temporários antes de salvar cliente
+  let produtos = [];
+
+  // Para edição
+  let editKey = null;
+
+  tipoPagamento.addEventListener('change', () => {
+    if (tipoPagamento.value === 'parcelado') {
+      numParcelas.disabled = false;
+      if (numParcelas.value < 1) numParcelas.value = 1;
+    } else {
+      numParcelas.disabled = true;
+      numParcelas.value = 1;
+    }
+  });
+
+  function atualizarListaProdutos() {
+    listaProdutos.innerHTML = '';
+    produtos.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <span><strong>${p.nome}</strong> - Qtd: ${p.qtd} - Custo: R$ ${p.precoCusto.toFixed(2)} - Venda: R$ ${p.precoVenda.toFixed(2)}</span>
+        <button class="remove-prod-btn" data-index="${i}">&times;</button>
+      `;
+      listaProdutos.appendChild(div);
+    });
+
+    // Evento para remover produto da lista temporária
+    document.querySelectorAll('.remove-prod-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        const index = e.target.getAttribute('data-index');
+        produtos.splice(index, 1);
+        atualizarListaProdutos();
+      };
+    });
+  }
+
+  btnAddProduto.onclick = () => {
+    if (!nomeProduto.value.trim()) {
+      alert('Informe o nome do produto.');
+      return;
+    }
+    if (qtdProduto.value <= 0) {
+      alert('Quantidade deve ser maior que zero.');
+      return;
+    }
+    if (precoCusto.value < 0 || precoVenda.value < 0) {
+      alert('Preços devem ser positivos.');
+      return;
+    }
+
+    produtos.push({
+      nome: nomeProduto.value.trim(),
+      qtd: Number(qtdProduto.value),
+      precoCusto: Number(precoCusto.value),
+      precoVenda: Number(precoVenda.value)
+    });
+
+    // Limpa campos
+    nomeProduto.value = '';
+    qtdProduto.value = 1;
+    precoCusto.value = 0;
+    precoVenda.value = 0;
+
+    atualizarListaProdutos();
+  };
+
+  function calcularTotais(produtos) {
+    let totalCusto = 0;
+    let totalVenda = 0;
+    produtos.forEach(p => {
+      totalCusto += p.qtd * p.precoCusto;
+      totalVenda += p.qtd * p.precoVenda;
+    });
+    return {
+      totalCusto,
+      totalVenda,
+      lucro: totalVenda - totalCusto
+    };
+  }
+
+  function limparFormulario() {
+    nomeCliente.value = '';
+    dataCompra.value = '';
+    tipoPagamento.value = 'avista';
+    numParcelas.value = 1;
+    numParcelas.disabled = true;
+    produtos = [];
+    atualizarListaProdutos();
+    editKey = null;
+  }
+
+  // Renderiza a tabela com os dados do Firebase
+  function renderizarTabela(clientesData) {
+    tabelaClientes.innerHTML = '';
+    let totalGeralCusto = 0;
+    let totalGeralVenda = 0;
+    let totalGeralLucro = 0;
+
+    Object.entries(clientesData).forEach(([key, cliente]) => {
+      const tot = calcularTotais(cliente.produtos);
+
+      totalGeralCusto += tot.totalCusto;
+      totalGeralVenda += tot.totalVenda;
+      totalGeralLucro += tot.lucro;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${cliente.nome}</td>
+        <td>${cliente.data}</td>
+        <td>${cliente.pagamento === 'avista' ? 'À vista' : 'Parcelado'}</td>
+        <td>${cliente.pagamento === 'parcelado' ? cliente.parcelas : '-'}</td>
+        <td>
+          <ul style="list-style:none;padding-left:0;text-align:left;">
+            ${cliente.produtos.map(p =>
+              `<li>${p.nome} - Qtd: ${p.qtd} - Custo: R$ ${p.precoCusto.toFixed(2)} - Venda: R$ ${p.precoVenda.toFixed(2)}</li>`
+            ).join('')}
+          </ul>
+        </td>
+        <td>R$ ${tot.totalCusto.toFixed(2)}</td>
+        <td>R$ ${tot.totalVenda.toFixed(2)}</td>
+        <td>R$ ${tot.lucro.toFixed(2)}</td>
+        <td>
+          <button class="btn-small btn-edit" data-key="${key}">Editar</button>
+          <button class="btn-small btn-delete" data-key="${key}">Excluir</button>
+        </td>
+      `;
+      tabelaClientes.appendChild(tr);
+    });
+
+    // Rodapé totais
+    const tabela = document.getElementById('tabelaClientes');
+    const tfootAntigo = tabela.querySelector('tfoot');
+    if (tfootAntigo) tfootAntigo.remove();
+
+    const tfoot = document.createElement('tfoot');
+    tfoot.innerHTML = `
+      <tr style="background:#f8f8f8; font-weight:bold;">
+        <td colspan="5" style="text-align:right;">Totais Gerais:</td>
+        <td>R$ ${totalGeralCusto.toFixed(2)}</td>
+        <td>R$ ${totalGeralVenda.toFixed(2)}</td>
+        <td>R$ ${totalGeralLucro.toFixed(2)}</td>
+        <td></td>
+      </tr>
+    `;
+    tabela.appendChild(tfoot);
+
+    // Eventos editar
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.onclick = e => {
+        const key = e.target.getAttribute('data-key');
+        const cliente = clientesData[key];
+        if (!cliente) return;
+
+        nomeCliente.value = cliente.nome;
+        dataCompra.value = cliente.data;
+        tipoPagamento.value = cliente.pagamento;
+        numParcelas.value = cliente.pagamento === 'parcelado' ? cliente.parcelas : 1;
+        numParcelas.disabled = cliente.pagamento !== 'parcelado';
+
+        produtos = [...cliente.produtos];
+        atualizarListaProdutos();
+
+        editKey = key;
+      };
+    });
+
+    // Eventos excluir
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.onclick = async e => {
+        const key = e.target.getAttribute('data-key');
+        if (confirm('Deseja realmente excluir este registro?')) {
+          await remove(ref(db, 'clientes/' + key));
+        }
+      };
+    });
+  }
+
+  // Listener realtime para dados clientes
+  const clientesRef = ref(db, 'clientes/');
+  onValue(clientesRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    renderizarTabela(data);
+  });
+
+  // Submit formulário
+  formCliente.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    if (produtos.length === 0) {
+      alert('Adicione pelo menos um produto para esta compra.');
+      return;
+    }
+
+    const cliente = {
+      nome: nomeCliente.value.trim(),
+      data: dataCompra.value,
+      pagamento: tipoPagamento.value,
+      parcelas: tipoPagamento.value === 'parcelado' ? Number(numParcelas.value) : 1,
+      produtos: [...produtos]
+    };
+
+    if (editKey) {
+      // Atualizar cliente existente
+      await update(ref(db, 'clientes/' + editKey), cliente);
+    } else {
+      // Criar novo cliente
+      const novoClienteRef = push(clientesRef);
+      await set(novoClienteRef, cliente);
+    }
+
+    limparFormulario();
+  });
+</script>
+
+<script type="module">
+  const { db, ref, onValue } = window.firebaseRefs;
+
+  // Exportar Excel (gera CSV simples)
+  document.getElementById('btnExportExcel').addEventListener('click', () => {
+    const clientesRef = ref(db, 'clientes/');
+    onValue(clientesRef, (snapshot) => {
+      const clientes = snapshot.val();
+      if (!clientes || Object.keys(clientes).length === 0) {
+        alert('Nenhum dado para exportar.');
+        return;
+      }
+
+      let csv = 'Cliente,Data,Pagamento,Parcelas,Produtos,Total Custo,Total Venda,Lucro\n';
+
+      Object.values(clientes).forEach(cliente => {
+        const tot = calcularTotais(cliente.produtos);
+        const produtosTexto = cliente.produtos.map(p => `${p.nome} (Qtd:${p.qtd}, Custo:R$${p.precoCusto.toFixed(2)}, Venda:R$${p.precoVenda.toFixed(2)})`).join(' | ');
+        csv += `"${cliente.nome}","${cliente.data}","${cliente.pagamento === 'avista' ? 'À vista' : 'Parcelado'}","${cliente.pagamento === 'parcelado' ? cliente.parcelas : '-'}","${produtosTexto}",${tot.totalCusto.toFixed(2)},${tot.totalVenda.toFixed(2)},${tot.lucro.toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'controle_estoque_adora_modas.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, { onlyOnce: true });
+  });
+
+  // Exportar PDF simples usando jsPDF
+  document.getElementById('btnExportPDF').addEventListener('click', () => {
+    const clientesRef = ref(db, 'clientes/');
+    onValue(clientesRef, (snapshot) => {
+      const clientes = snapshot.val();
+      if (!clientes || Object.keys(clientes).length === 0) {
+        alert('Nenhum dado para exportar.');
+        return;
+      }
+
+      // Carregar jsPDF via CDN dinamicamente se não existir
+      if (typeof window.jsPDF === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = () => gerarPDF(clientes);
+        document.body.appendChild(script);
+      } else {
+        gerarPDF(clientes);
+      }
+    }, { onlyOnce: true });
+
+    function gerarPDF(clientes) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(18);
+      doc.text("A'Dora Modas - Controle de Estoque", 14, 22);
+
+      let y = 35;
+      doc.setFontSize(12);
+
+      Object.values(clientes).forEach((cliente, i) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        const tot = calcularTotais(cliente.produtos);
+
+        doc.text(`Cliente: ${cliente.nome}`, 14, y);
+        y += 7;
+        doc.text(`Data: ${cliente.data} | Pagamento: ${cliente.pagamento === 'avista' ? 'À vista' : 'Parcelado'} | Parcelas: ${cliente.pagamento === 'parcelado' ? cliente.parcelas : '-'}`, 14, y);
+        y += 7;
+
+        cliente.produtos.forEach(p => {
+          const prodStr = `- ${p.nome}: Qtd ${p.qtd}, Custo R$ ${p.precoCusto.toFixed(2)}, Venda R$ ${p.precoVenda.toFixed(2)}`;
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(prodStr, 18, y);
+          y += 6;
+        });
+
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(`Total Custo: R$ ${tot.totalCusto.toFixed(2)} | Total Venda: R$ ${tot.totalVenda.toFixed(2)} | Lucro: R$ ${tot.lucro.toFixed(2)}`, 14, y);
+        y += 15;
+      });
+
+      doc.save('controle_estoque_adora_modas.pdf');
+    }
+  });
+
+  // Função calculartotais repetida pois está fora do outro script
+  function calcularTotais(produtos) {
+    let totalCusto = 0;
+    let totalVenda = 0;
+    produtos.forEach(p => {
+      totalCusto += p.qtd * p.precoCusto;
+      totalVenda += p.qtd * p.precoVenda;
+    });
+    return {
+      totalCusto,
+      totalVenda,
+      lucro: totalVenda - totalCusto
+    };
+  }
+</script>
+
+</body>
+</html>
